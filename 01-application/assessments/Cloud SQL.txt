@@ -1,0 +1,5 @@
+Service Name: Cloud SQL
+Compliance Status: Not Compliant
+Assessment Date: 2024-06-09
+
+Cloud SQL offers managed relational databases and supports compliance requirements when configured correctly. It is available in the europe-west3 region and supports CMEK through integration with Cloud KMS. However, it is deemed not compliant because it does not support PostgreSQL version 16.

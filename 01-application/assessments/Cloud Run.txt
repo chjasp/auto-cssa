@@ -1,0 +1,5 @@
+Service Name: Cloud Run
+Compliance Status: Compliant (Pending Review)
+Assessment Date: 2024-06-09
+
+Cloud Run is a serverless platform for running stateless containers that is generally compliant with our security requirements. It supports deployment in the europe-west3 region and can integrate with Cloud KMS for encryption. However, a detailed review of specific configurations and access controls is necessary to confirm full compliance.

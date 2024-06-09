@@ -1,0 +1,5 @@
+Service Name: Cloud Storage
+Compliance Status: Compliant
+Assessment Date: 2024-06-09
+
+Cloud Storage provides object storage for various data types and can meet compliance standards. It offers storage in the europe-west3 region and supports CMEK with Cloud KMS integration. Regular security audits and appropriate bucket-level permissions are essential to ensure ongoing compliance.

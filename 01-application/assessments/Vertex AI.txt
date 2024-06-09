@@ -1,0 +1,5 @@
+Service Name: Firestore
+Compliance Status: Non-Compliant
+Assessment Date: 2024-06-09
+
+Firestore provides a scalable NoSQL database for mobile, web, and server development. However, it currently lacks support for customer-managed encryption keys (CMEK) as required by our organization's security policy. This poses a risk of non-compliance with data protection regulations. Alternative solutions or additional security measures should be explored to ensure data confidentiality and integrity.
