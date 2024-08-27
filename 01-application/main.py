@@ -20,7 +20,6 @@ import google.generativeai as genai
 
 load_dotenv()
 
-
 class Settings(BaseSettings):
     """Application settings from environment variables."""
     gcp_project_id: str = os.getenv("PROJECT_ID")
@@ -55,24 +54,22 @@ def fetch_release_notes(rss_feed_url: str) -> List[Dict[str, str]]:
     min_date = now_utc - datetime.timedelta(days=3)
 
     for entry in feed.entries:
-        updated_date_str = entry.updated
-        updated_date = datetime.datetime.fromisoformat(updated_date_str)
-        soup = BeautifulSoup(entry.content[0].value, 'html.parser')
-        cleaned_content = soup.get_text()
+        updated_date = datetime.datetime.fromisoformat(entry.updated)
         if updated_date >= min_date:
+            soup = BeautifulSoup(entry.content[0].value, 'html.parser')
             update = {
                 'title': entry.title,
                 'link': entry.link,
                 'summary': entry.summary,
                 'updated': updated_date.isoformat(),
-                'content': cleaned_content
+                'content': soup.get_text()
             }
             updates.append(update)
 
     logging.info(f"Fetched {len(updates)} release notes.")
     return updates
 
-def fetch_html_content(url):
+def fetch_html_content(url: str) -> str:
     """Fetches and cleans the HTML content from the given URL."""
     response = requests.get(url)
     response.raise_for_status()  # Raise an exception for bad responses
@@ -93,8 +90,8 @@ def identify_relevant_cssas(update: dict) -> List[str]:
 
     cssa_names = response.text.replace("\n", "")
     cssa_names = cssa_names.replace("Services:", "").strip()
-    cssa_names = [name.strip() for name in cssa_names.split(",")]
-    print(f"{update['title']}:\n{cssa_names}")
+    cssa_names = [name.strip() for name in cssa_names.split(",") if name.strip()]
+    logging.info(f"{update['title']}:\n{cssa_names}")
     return cssa_names
 
 
@@ -106,7 +103,8 @@ def fetch_cssa_from_storage(cssa_name: str) -> Optional[str]:
     if blob.exists():
         return blob.download_as_text()
     else:
-        raise FileNotFoundError(f"CSSA file not found: {blob_name}")
+        logging.error(f"CSSA file not found: {blob_name}")
+        return None
 
 
 def analyze_with_llm(update: dict, cssa_content: str) -> str:
@@ -128,18 +126,12 @@ def process_and_store_assessment(
     doc_snapshot = doc_ref.get()
     logging.info(f"Storing assessment results for {cssa_name}")
 
-    if not llm_suggestions or llm_suggestions == "None" or llm_suggestions == "No changes needed":
-        if doc_snapshot.exists:
-            existing_suggestions = doc_snapshot.to_dict().get("suggested_update", "")
-        else:
-            existing_suggestions = ""
+    existing_suggestions = doc_snapshot.to_dict().get("suggested_update", "") if doc_snapshot.exists else ""
+
+    if not llm_suggestions or llm_suggestions.lower() in ["none", "no changes needed"]:
         new_suggestions = f"**{update['updated']} - {update['title']}**\nNo changes needed.\n\n{existing_suggestions}"
         assessment_result = "compliant"
     else:
-        if doc_snapshot.exists:
-            existing_suggestions = doc_snapshot.to_dict().get("suggested_update", "")
-        else:
-            existing_suggestions = ""
         new_suggestions = f"**{update['updated']} - {update['title']}**\n{llm_suggestions}\n\n{existing_suggestions}"
         assessment_result = "update_needed"
 
@@ -156,48 +148,27 @@ def process_and_store_assessment(
 def process_release_notes(request: Optional[Dict[str, str]] = None) -> None:
     """Processes either GCP release notes (RSS) or a custom HTML page."""
 
-    source_type = request.get(
-        "source_type") if request else "rss"
-    url = request.get("url") if request else settings.gcp_rss_feed
+    source_type = request.get("source_type", "rss") if request else "rss"
+    url = request.get("url", settings.gcp_rss_feed) if request else settings.gcp_rss_feed
     logging.info(f"Processing {source_type} from: {url}")
 
-    if source_type == "rss":
-        updates = fetch_release_notes(url)
-        for update in updates:
-            potentially_affected_cssas = identify_relevant_cssas(update)
-            if potentially_affected_cssas != ['None']:
-                for cssa_name in potentially_affected_cssas:
-                    cssa_content = fetch_cssa_from_storage(cssa_name)
-                    if cssa_content:
-                        llm_suggestions = analyze_with_llm(
-                            update, cssa_content)
-                        process_and_store_assessment(
-                            llm_suggestions, update, cssa_name)
-                    pass
-    elif source_type == "html":
-        update = {
-            'title': f'HTML update from {url}',
-            'link': url,
-            'summary': 'Custom HTML Update',
-            'updated': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'content': fetch_html_content(url)
-        }
+    updates = fetch_release_notes(url) if source_type == "rss" else [{
+        'title': f'HTML update from {url}',
+        'link': url,
+        'summary': 'Custom HTML Update',
+        'updated': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        'content': fetch_html_content(url)
+    }]
+
+    for update in updates:
         potentially_affected_cssas = identify_relevant_cssas(update)
-        if potentially_affected_cssas != ['None']:
-            for cssa_name in potentially_affected_cssas:
-                cssa_content = fetch_cssa_from_storage(cssa_name)
-                if cssa_content:
-                    llm_suggestions = analyze_with_llm(
-                        update, cssa_content)
-                    process_and_store_assessment(
-                        llm_suggestions, update, cssa_name)
-
-    else:
-        logging.error(f"Invalid source_type: {source_type}")
-
-
-test_request = {
-}
+        for cssa_name in potentially_affected_cssas:
+            cssa_content = fetch_cssa_from_storage(cssa_name)
+            if cssa_content:
+                llm_suggestions = analyze_with_llm(update, cssa_content)
+                process_and_store_assessment(llm_suggestions, update, cssa_name)
+            else:
+                logging.warning(f"Skipping analysis for {cssa_name} due to missing content")
 
 # Call the main function with the test request
 process_release_notes(test_request)
