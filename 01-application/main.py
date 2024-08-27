@@ -15,6 +15,7 @@ from prompts import get_prompt
 from google.cloud import firestore
 from google.cloud import storage
 import google.generativeai as genai
+import difflib
 
 # ---------- (1) Configuration ----------
 
@@ -30,7 +31,6 @@ class Settings(BaseSettings):
     gemini_api_key: str = os.getenv("GEMINI_API_KEY")
     gcp_rss_feed: str = os.getenv("GCP_RSS_FEED")
 
-
 settings = Settings()
 logging.basicConfig(level=logging.INFO)
 
@@ -42,7 +42,6 @@ db = firestore.Client(project=settings.gcp_project_id,
                       database=settings.gcp_firestore_database)
 
 # ---------- (2) Helper Functions ----------
-
 
 def fetch_release_notes(rss_feed_url: str) -> List[Dict[str, str]]:
     logging.info(f"Fetching GCP release notes from {rss_feed_url}")
@@ -76,7 +75,6 @@ def fetch_html_content(url: str) -> str:
     soup = BeautifulSoup(response.content, 'html.parser')
     return soup.get_text()
 
-
 def identify_relevant_cssas(update: dict) -> List[str]:
     logging.info(f"Identifying relevant CSSAs for update: {update['title']}")
 
@@ -88,12 +86,10 @@ def identify_relevant_cssas(update: dict) -> List[str]:
                         update_title=update["title"], update_content=update["content"], cssa_list=cssa_list)
     response = model.generate_content(prompt)
 
-    cssa_names = response.text.replace("\n", "")
-    cssa_names = cssa_names.replace("Services:", "").strip()
+    cssa_names = response.text.replace("\n", "").replace("Services:", "").strip()
     cssa_names = [name.strip() for name in cssa_names.split(",") if name.strip()]
     logging.info(f"{update['title']}:\n{cssa_names}")
     return cssa_names
-
 
 def fetch_cssa_from_storage(cssa_name: str) -> Optional[str]:
     logging.info(f"Fetching CSSA from storage: {cssa_name}")
@@ -106,7 +102,6 @@ def fetch_cssa_from_storage(cssa_name: str) -> Optional[str]:
         logging.error(f"CSSA file not found: {blob_name}")
         return None
 
-
 def analyze_with_llm(update: dict, cssa_content: str) -> str:
     logging.info(
         f"Analyzing update '{update['title']}'")
@@ -117,12 +112,10 @@ def analyze_with_llm(update: dict, cssa_content: str) -> str:
     response = model.generate_content(prompt)
     return response.text
 
-
 def process_and_store_assessment(
     llm_suggestions: str, update: dict, cssa_name: str
 ) -> None:
-    doc_ref = db.collection(
-        settings.gcp_firestore_collection).document(cssa_name)
+    doc_ref = db.collection(settings.gcp_firestore_collection).document(cssa_name)
     doc_snapshot = doc_ref.get()
     logging.info(f"Storing assessment results for {cssa_name}")
 
@@ -144,8 +137,7 @@ def process_and_store_assessment(
 
 # ---------- (3) Main Function (CF entry point) ----------
 
-
-def process_release_notes(request: Optional[Dict[str, str]] = None) -> None:
+def process_release_notes(request: Optional[Dict[str, str]] = None) -> str:
     """Processes either GCP release notes (RSS) or a custom HTML page."""
 
     source_type = request.get("source_type", "rss") if request else "rss"
@@ -169,6 +161,51 @@ def process_release_notes(request: Optional[Dict[str, str]] = None) -> None:
                 process_and_store_assessment(llm_suggestions, update, cssa_name)
             else:
                 logging.warning(f"Skipping analysis for {cssa_name} due to missing content")
+
+        storage_client = storage.Client()
+    db = firestore.Client()
+
+    bucket = storage_client.bucket(BUCKET_NAME)
+    collection_ref = db.collection(FIRESTORE_COLLECTION)
+
+    for update in updates:
+        # Generate a unique identifier for the update
+        update_id = f"{update['title']}_{update['updated']}"
+        
+        # Check if we have a previous version
+        previous_blob = bucket.get_blob(f"{update['title']}/previous.txt")
+        
+        if previous_blob:
+            # Compute diff
+            previous_content = previous_blob.download_as_text()
+            diff = list(difflib.unified_diff(
+                previous_content.splitlines(),
+                update['content'].splitlines(),
+                lineterm='',
+                n=3  # context lines
+            ))
+            
+            # Store diff in Firestore
+            collection_ref.document(update_id).set({
+                'title': update['title'],
+                'last_update': update['updated'],
+                'diff': diff,
+                'status': 'pending'  # or 'new', to be reviewed
+            })
+        else:
+            # If no previous version, store as new content
+            collection_ref.document(update_id).set({
+                'title': update['title'],
+                'last_update': update['updated'],
+                'content': update['content'],
+                'status': 'new'
+            })
+
+        # Update the "previous" version in GCS
+        new_blob = bucket.blob(f"{update['title']}/previous.txt")
+        new_blob.upload_from_string(update['content'])
+
+    return "Processing completed successfully", 200
 
 # Call the main function with the test request
 process_release_notes(test_request)
