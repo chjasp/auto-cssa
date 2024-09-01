@@ -43,4 +43,6 @@ Implement appropriate data retention and deletion policies
 Assessment:
 Confirm data encryption in transit is enabled. Review key management practices if using Cloud KMS. Verify data retention and deletion policies are in place and followed.
 Conclusion
-While Google Cloud Run provides a secure foundation, implementing these additional security measures is crucial for comprehensive protection. Regular assessments and updates to security practices are necessary to maintain a strong security posture as the threat landscape evolves.
+This service is currently under assessment.
+Therefore, the current assessment is not available.
+Regular assessments and updates to security practices are necessary to maintain a strong security posture as the threat landscape evolves.

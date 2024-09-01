@@ -1,0 +1,20 @@
+[
+    {
+      "id": "change1",
+      "start_line":24,
+      "end_line": 24,
+      "last_updated": "2023-06-15T10:30:00Z",
+      "update_reason": "Security policy change",
+      "reference_link": "https://cloud.google.com/security/policy-update-2023",
+      "change_summary": "Updated firewall rules"
+    },
+    {
+      "id": "change2",
+      "start_line": 46,
+      "end_line": 48,
+      "last_updated": "2023-06-16T14:45:00Z",
+      "update_reason": "Compliance requirement",
+      "reference_link": "https://cloud.google.com/compliance/update-2023",
+      "change_summary": "Added new access controls"
+    }
+  ]

@@ -1,0 +1,22 @@
+export const gcpServices = [
+    { id: 1, name: 'Cloud Run', slug: 'cloud-run' },
+    { id: 2, name: 'Cloud Storage', slug: 'cloud-storage' },
+    { id: 3, name: 'Compute Engine', slug: 'compute-engine' },
+    { id: 4, name: 'App Engine', slug: 'app-engine' },
+    { id: 5, name: 'Kubernetes Engine', slug: 'kubernetes-engine' },
+    { id: 6, name: 'Cloud Functions', slug: 'cloud-functions' },
+    { id: 7, name: 'Cloud SQL', slug: 'cloud-sql' },
+    { id: 8, name: 'Cloud Spanner', slug: 'cloud-spanner' },
+    { id: 9, name: 'Cloud Bigtable', slug: 'cloud-bigtable' },
+    { id: 10, name: 'Firestore', slug: 'firestore' },
+    { id: 11, name: 'Cloud Memorystore', slug: 'cloud-memorystore' },
+    { id: 12, name: 'Virtual Private Cloud (VPC)', slug: 'virtual-private-cloud' },
+    { id: 13, name: 'Cloud Load Balancing', slug: 'cloud-load-balancing' },
+    { id: 14, name: 'Cloud CDN', slug: 'cloud-cdn' },
+    { id: 15, name: 'Cloud DNS', slug: 'cloud-dns' },
+    { id: 16, name: 'BigQuery', slug: 'bigquery' },
+    { id: 17, name: 'Dataflow', slug: 'dataflow' },
+    { id: 18, name: 'Pub/Sub', slug: 'pub-sub' },
+    { id: 19, name: 'AI Platform', slug: 'ai-platform' },
+    { id: 20, name: 'Cloud IAM', slug: 'cloud-iam' }
+];
