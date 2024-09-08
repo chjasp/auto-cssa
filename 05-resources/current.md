@@ -21,7 +21,8 @@ Use Container Analysis and Vulnerability Scanning to detect vulnerabilities
 Implement automatic base image updates for compatible containers
 Use Google-provided base images that receive routine security patches
 Assessment:
-Verify vulnerability scanning is enabled for all container images. Check that automatic security updates are configured where possible. Review base images used and ensure they are from trusted sources.
+Verify vulnerability scanning is enabled for all container images. 
+Check that automatic security updates are configured where possible. Review base images used and ensure they are from trusted sources.
 Runtime Security
 Best Practices:
 Enable Cloud Run's execution environments for sandboxing

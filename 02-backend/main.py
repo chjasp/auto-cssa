@@ -95,8 +95,8 @@ async def accept_change(service_name: str, change: dict = Body(...)):
         updated_start_line = change['updatedStartLine']
         updated_end_line = change['updatedEndLine']
         
-        # Apply the change from updated.md to current.md
-        current_content[current_start_line:current_end_line+1] = updated_content[updated_start_line:updated_end_line+1]
+        # Replace the content in current file with content from updated file
+        current_content[current_start_line:current_end_line] = updated_content[updated_start_line:updated_end_line]
         
         # Update the current blob
         current_blob.upload_from_string("\n".join(current_content))
@@ -105,9 +105,6 @@ async def accept_change(service_name: str, change: dict = Body(...)):
         if current_content == updated_content:
             # If no differences remain, delete the updated blob
             updated_blob.delete()
-        else:
-            # If differences remain, update the updated blob
-            updated_blob.upload_from_string("\n".join(updated_content))
         
         return {"message": "Change accepted and files updated"}
     except Exception as e:
@@ -132,20 +129,50 @@ async def reject_change(service_name: str, change: dict = Body(...)):
         updated_start_line = change['updatedStartLine']
         updated_end_line = change['updatedEndLine']
         
-        # Revert the change in updated.md to match current.md
-        updated_content[updated_start_line:updated_end_line+1] = current_content[current_start_line:current_end_line+1]
+        # Replace the content in updated file with content from current file
+        updated_content[updated_start_line:updated_end_line] = current_content[current_start_line:current_end_line]
+        
+        # Update the updated blob
+        updated_blob.upload_from_string("\n".join(updated_content))
+        
+        return {"message": "Change rejected and files updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rejecting change: {str(e)}")
+
+@app.post("/api/accept_block_change/{service_name}")
+async def accept_block_change(service_name: str, block: list = Body(...)):
+    try:
+        bucket = storage_client.bucket(BUCKET_NAME)
+        
+        current_blob_path = f"{service_name}/current.md"
+        updated_blob_path = f"{service_name}/updated.md"
+        
+        current_blob = bucket.blob(current_blob_path)
+        updated_blob = bucket.blob(updated_blob_path)
+        
+        current_content = current_blob.download_as_text().splitlines()
+        updated_content = updated_blob.download_as_text().splitlines()
+        
+        # Get the overall start and end lines for the block
+        block_start = min(change['currentStartLine'] for change in block)
+        block_end = max(change['currentEndLine'] for change in block)
+        updated_start = min(change['updatedStartLine'] for change in block)
+        updated_end = max(change['updatedEndLine'] for change in block)
+        
+        # Replace the content in current file with content from updated file for this block
+        current_content[block_start:block_end] = updated_content[updated_start:updated_end]
+        
+        # Update the current blob
+        current_blob.upload_from_string("\n".join(current_content))
         
         # Check if there are any remaining differences
         if current_content == updated_content:
             # If no differences remain, delete the updated blob
             updated_blob.delete()
-        else:
-            # If differences remain, update the updated blob
-            updated_blob.upload_from_string("\n".join(updated_content))
         
-        return {"message": "Change rejected and files updated"}
+        return {"message": "Block change accepted and files updated"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rejecting change: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error accepting block change: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
